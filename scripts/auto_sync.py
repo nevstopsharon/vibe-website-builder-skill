@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,7 @@ POLL_SECONDS = 10
 QUIET_SECONDS = 20
 MAX_FILE_BYTES = 20 * 1024 * 1024
 LOG_FILE = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Codex" / "vibe-website-builder-sync.log"
+FALLBACK_LOG_FILE = Path(tempfile.gettempdir()) / "vibe-website-builder-sync.log"
 SECRET_PATTERNS = (
     re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     re.compile(rb"\b(?:sk|ghp|github_pat)_[A-Za-z0-9_-]{20,}\b"),
@@ -36,11 +38,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def log(message: str) -> None:
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     line = f"[{datetime.now().isoformat(timespec='seconds')}] {message}"
     print(line)
-    with LOG_FILE.open("a", encoding="utf-8") as handle:
-        handle.write(line + "\n")
+    for path in (LOG_FILE, FALLBACK_LOG_FILE):
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(line + "\n")
+            return
+        except OSError:
+            continue
 
 
 def run(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
