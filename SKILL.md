@@ -135,12 +135,12 @@ py -3 scripts/verify_deployment.py --site-root <发布目录> --base-url <预览
 
 先阅读脚本开头“用户配置区”。脚本失败时修复原因，不绕过检查。
 
-## GitHub自动同步
+## GitHub手动同步
 
-当该Skill目录本身已连接独立GitHub仓库时，可安装Windows登录任务：
+禁止安装后台监控、计划任务或登录启动项。只有用户明确要求“同步到GitHub”时才运行：
 
 ```powershell
-py -3 scripts/install_auto_sync.py --start-now
+py -3 scripts/sync_to_github.py --message "说明本次修改"
 ```
 
-同步器等待文件停止变化20秒，先运行Skill校验和密钥/大文件扫描，再自动提交并推送。远端存在新提交、校验失败或疑似密钥时停止同步，不强制覆盖。日志位于 `%LOCALAPPDATA%\Codex\vibe-website-builder-sync.log`。
+脚本先运行Skill校验和密钥/大文件扫描，再提交并推送。远端存在新提交、校验失败或疑似密钥时停止，不强制覆盖。
