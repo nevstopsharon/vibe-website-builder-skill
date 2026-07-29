@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import os
 import re
 import subprocess
@@ -25,6 +26,7 @@ SECRET_PATTERNS = (
     re.compile(rb"\b(?:sk|ghp|github_pat)_[A-Za-z0-9_-]{20,}\b"),
     re.compile(rb"\b(?:OPENAI_API_KEY|SUPABASE_SERVICE_ROLE_KEY)\s*[:=]\s*[\"']?[^\"'\s]+"),
 )
+WINDOWS_MUTEX_NAME = "Local\\CodexVibeWebsiteBuilderAutoSync"
 # ====================================================
 
 
@@ -167,6 +169,23 @@ def watch(repo: Path, dry_run: bool) -> int:
         time.sleep(POLL_SECONDS)
 
 
+def acquire_single_instance() -> int | None:
+    if sys.platform != "win32":
+        return 1
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p]
+    kernel32.CreateMutexW.restype = ctypes.c_void_p
+    kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel32.CloseHandle.restype = ctypes.c_bool
+    handle = kernel32.CreateMutexW(None, False, WINDOWS_MUTEX_NAME)
+    if not handle:
+        return None
+    if ctypes.get_last_error() == 183:
+        kernel32.CloseHandle(handle)
+        return None
+    return int(handle)
+
+
 def main() -> int:
     args = parse_args()
     repo = args.repo_root.resolve()
@@ -175,7 +194,13 @@ def main() -> int:
         return 2
     if not args.once and not args.watch:
         args.once = True
+    mutex_handle: int | None = None
     try:
+        if args.watch:
+            mutex_handle = acquire_single_instance()
+            if mutex_handle is None:
+                log("已有同步监控进程，本次不重复启动。")
+                return 0
         return watch(repo, args.dry_run) if args.watch else sync_once(repo, args.dry_run)
     except KeyboardInterrupt:
         log("监控已停止。")
@@ -183,6 +208,12 @@ def main() -> int:
     except (OSError, subprocess.SubprocessError) as exc:
         log(f"同步异常：{exc}")
         return 3
+    finally:
+        if sys.platform == "win32" and mutex_handle:
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+            kernel32.CloseHandle.restype = ctypes.c_bool
+            kernel32.CloseHandle(ctypes.c_void_p(mutex_handle))
 
 
 if __name__ == "__main__":
