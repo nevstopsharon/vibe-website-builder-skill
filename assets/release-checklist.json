@@ -1,0 +1,18 @@
+{
+  "blockers": {
+    "demo_or_pending_content": false,
+    "noindex_present": false,
+    "broken_pages_buttons_forms_or_links": false,
+    "mobile_overflow_or_occlusion": false,
+    "keyboard_core_flow_blocked": false,
+    "reduced_motion_missing": false,
+    "image_metadata_missing": false,
+    "console_errors": false,
+    "rls_unverified": false,
+    "secret_or_internal_asset_public": false,
+    "local_remote_bytes_differ": false,
+    "required_404_robots_sitemap_canonical_missing": false
+  },
+  "exceptions": [],
+  "launch_confirmation": false
+}
